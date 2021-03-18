@@ -17,30 +17,38 @@ io.on("connection", (socket) => {
     }
 
     if (user.connected) {
-        socket.emit('alreadyConnected')
+        socket.emit('alreadyConnected', undefined, () => {
+            socket.disconnect(true)
+        })
         return;
     }
 
     if (user.room) {
+        console.log('user ' + user.ip + ' connected')
         user.connected = true;
         user.socketId = socket.id;
         socket.join(user.room.id);
         user.room.syncMarks(user);
+
+        socket.on("addMark", (data) => {
+            let user = users[userIp];
+
+            if (!user.room) {
+                return
+            }
+
+            user.addMark(data);
+        })
+
+        socket.on('deleteMark', (id) => {
+            user.deleteMark(id);
+        })
     }
 
     socket.on('disconnect', () => {
+        console.log('user ' + user.ip + ' disconnected')
         socket.removeAllListeners();
         user.connected = false;
-    })
-
-    socket.on("addMark", (data) => {
-        let user = users[userIp];
-
-        if (!user.room) {
-            return
-        }
-
-        user.addMark(data);
     })
 })
 
@@ -79,14 +87,11 @@ app.use(function (req, res, next) {
 })
 
 app.get('/', (req, res) => {
-    console.log(req.user)
     if (req.user.room) {
-        return res.sendFile(__dirname + '/map.html')
-    }
-    else {
-        return res.sendFile(__dirname + '/index.html')
+        req.user.leaveRoom()
     }
 
+    return res.sendFile(__dirname + '/index.html')
 })
 
 app.get('/rooms/:roomId', (req, res) => {
@@ -101,20 +106,20 @@ app.get('/rooms/:roomId', (req, res) => {
     }
 
     if (!req.user.room) {
-        req.user.room = room;
+        req.user.joinRoom(room);
     }
 
     return res.sendFile(__dirname + '/map.html')
 })
 
 app.post('/create', (req, res) => {
-    if (req.user.room) {
+    if (req.user.connected) {
         return res.status(500).send("You are already connected to some room!")
     }
 
     let room = new Room(req.user);
     rooms[room.id] = room;
-    req.user.room = room;
+    req.user.joinRoom(room);
 
     return res.redirect('/rooms/' + room.id)
 })

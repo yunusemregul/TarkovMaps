@@ -20,6 +20,9 @@ class User {
      * @param {Room} room 
      */
     joinRoom(room) {
+        if (this.room)
+            return;
+
         if (room.addUser(this)) {
             this.room = room
             this.updateLastActive()
@@ -29,12 +32,26 @@ class User {
         return false;
     }
 
+    leaveRoom() {
+        if (!this.room) return;
+
+        this.room.removeUser(this)
+        this.room = undefined
+        this.updateLastActive()
+    }
+
     addMark(data) {
         this.room.addMark(this, data);
+        this.updateLastActive()
+    }
+
+    deleteMark(id) {
+        this.room.deleteMark(this, id);
+        this.updateLastActive()
     }
 
     getShortName() {
-        return this.room.getUserShortName(this)
+        return this.room.getUserBadge(this)
     }
 }
 
