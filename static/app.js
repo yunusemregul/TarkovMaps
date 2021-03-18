@@ -12,7 +12,7 @@ var bounds = [
     [6843, 9530],
 ];
 
-var image = L.imageOverlay("img/woods.png", bounds).addTo(map);
+var image = L.imageOverlay("/static/img/woods.png", bounds).addTo(map);
 
 map.fitBounds(bounds);
 
