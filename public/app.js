@@ -21,5 +21,5 @@ map.on("click", function (e) {
 });
 
 socket.on("ping", (data) => {
-    
+    L.marker(data, {title: 'hello'}).addTo(map);
 });
