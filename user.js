@@ -7,6 +7,8 @@ class User {
     constructor(ip) {
         this.ip = ip
         this.lastActive = Date.now()
+        this.connected = false;
+        this.socketId = undefined;
     }
 
     updateLastActive() {
@@ -18,13 +20,21 @@ class User {
      * @param {Room} room 
      */
     joinRoom(room) {
-        if (room.userAdd(this)) {
+        if (room.addUser(this)) {
             this.room = room
-            updateLastActive()
+            this.updateLastActive()
             return true;
         }
 
         return false;
+    }
+
+    addMark(data) {
+        this.room.addMark(this, data);
+    }
+
+    getShortName() {
+        return this.room.getUserShortName(this)
     }
 }
 

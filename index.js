@@ -2,6 +2,7 @@ const express = require("express")
 const app = express()
 const http = require("http").Server(app)
 const io = require("socket.io")(http)
+module.exports = io
 const User = require('./user')
 const Room = require('./room')
 
@@ -11,18 +12,35 @@ io.on("connection", (socket) => {
     const userIp = socket.handshake.address;
     let user = users[userIp];
 
-    if (user.room) {
-        socket.join(user.room.id);
+    if (!user) {
+        return
     }
 
-    socket.on("addMark", (pos) => {
+    if (user.connected) {
+        socket.emit('alreadyConnected')
+        return;
+    }
+
+    if (user.room) {
+        user.connected = true;
+        user.socketId = socket.id;
+        socket.join(user.room.id);
+        user.room.syncMarks(user);
+    }
+
+    socket.on('disconnect', () => {
+        socket.removeAllListeners();
+        user.connected = false;
+    })
+
+    socket.on("addMark", (data) => {
         let user = users[userIp];
 
         if (!user.room) {
             return
         }
 
-        io.to(user.room.id).emit('addMark', { pos: pos, brand: user.room.getUserShortName(user) })
+        user.addMark(data);
     })
 })
 
@@ -42,7 +60,7 @@ var users = []
 /** @type {Room[]} */
 var rooms = []
 
-function getUser(ip) {
+function addAndGetUser(ip) {
     if (!users[ip]) {
         users[ip] = new User(ip)
     }
@@ -56,7 +74,7 @@ function getUser(ip) {
 app.use(function (req, res, next) {
     const userIp = getIp(req)
 
-    req.user = getUser(userIp)
+    req.user = addAndGetUser(userIp)
     next()
 })
 
@@ -75,7 +93,15 @@ app.get('/rooms/:roomId', (req, res) => {
     let room = rooms[req.params.roomId];
 
     if (!room) {
-        res.status(404).send("Room not found!")
+        return res.status(404).send("Room not found!")
+    }
+
+    if (req.user.room && req.user.room != room) {
+        return res.status(500).send("You can not join to this room! You are already joined to some other.")
+    }
+
+    if (!req.user.room) {
+        req.user.room = room;
     }
 
     return res.sendFile(__dirname + '/map.html')
@@ -83,7 +109,7 @@ app.get('/rooms/:roomId', (req, res) => {
 
 app.post('/create', (req, res) => {
     if (req.user.room) {
-        return;
+        return res.status(500).send("You are already connected to some room!")
     }
 
     let room = new Room(req.user);

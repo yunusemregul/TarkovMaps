@@ -17,9 +17,21 @@ var image = L.imageOverlay("/static/img/woods.png", bounds).addTo(map);
 map.fitBounds(bounds);
 
 map.on("click", function (e) {
-    socket.emit("ping", e.latlng);
+    socket.emit("addMark", { pos: e.latlng });
 });
 
-socket.on("ping", (data) => {
-    L.marker(data, {title: 'hello'}).addTo(map);
+socket.on("alreadyConnected", () => {
+    $('#alreadyConnectedModal').modal({ show: true, backdrop: 'static', keyboard: false })
+    $('#alreadyConnectedModal').modal('show')
+})
+
+socket.on("syncMarks", (data) => {
+    console.log(data)
+    for (const mark of data) {
+        L.marker(mark.pos, { title: mark.name }).addTo(map);
+    }
+})
+
+socket.on("addMark", (data) => {
+    L.marker(data.pos, { title: data.name }).addTo(map);
 });
